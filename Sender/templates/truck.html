@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Truck Management</title>
+  <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  height: 100vh;
+  background: #eaf0f6 ;/* soft professional grey background */
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 20px;
+  padding: 20px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-box, .add-truck-box, .file-list, .summary-container {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  padding: 20px;
+  border-radius: 0; /* sharp corners for clean, pro look */
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #999;
+  font-size: 14px;
+  background: #fdfdfd;
+}
+
+button {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #999;
+  background: #f1f1f1;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease-in-out;
+  margin-bottom: 20px;
+}
+
+button:hover {
+  background: #e2e2e2;
+}
+
+.file-list {
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.file-list h3 {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.file-table th, .file-table td {
+  padding: 10px;
+  text-align: center;
+  
+  border-bottom: 1px solid #ddd;
+}
+
+.file-table th {
+  background: #f7f7f7;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.remove-btn {
+  padding: 6px 12px;
+  border: 1px solid #999;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.remove-btn:hover {
+  background: #e74c3c;
+  color: white;
+  border-color: #e74c3c;
+}
+
+.summary-container {
+  grid-column: 1 / -1;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 20px;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+#summary-table th, #summary-table td {
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+#summary-table th {
+  background: #f7f7f7;
+}
+
+/* Dropdown and button in summary container */
+.summary-container select,
+.summary-container button {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #999;
+  font-size: 14px;
+  background-color: #f9f9f9;
+  font-weight: 600;
+}
+
+.loading-icon {
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #333;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+  </style>
+</head>
+<body>
+
+  <!-- Left Section: Forms -->
+  <div class="section">
+
+    <!-- Search and Upload Section -->
+    <form action="{{ url_for('truck_details') }}" method="POST" class="form-box">
+      <label
+      <label for="truck_no">Truck Number:</label>
+      <select id="truck_no" name="truck_no">
+          <option value="">-- Select Truck Number --</option>
+          {% for truck in truck_folders %}
+          <option value="{{ truck }}" {% if truck == truck_no %} selected {% endif %}>{{ truck }}</option>
+          {% endfor %}
+      </select>
+
+      <label for="date">Date:</label>
+      <input type="date" name="date" id="date" required value="{{ date if date else '' }}">
+
+      <button type="submit" class="btn" id="Search_btn" >Search</button>
+      <button type="button" id="upload-btn" class="btn" >Upload</button>
+      <input type="file" id="FileUpload1" style="display: none;" multiple />
+      <div id="upload-status"></div>
+    </form>
+
+    <!-- Add Truck Section -->
+    <form action="{{ url_for('add_truck') }}" method="POST" class="add-truck-box">
+      <label for="truck_no_add">Truck Number:</label>
+      <input type="text" name="truck_no" id="truck_no_add" placeholder="Enter New Truck Number" required>
+      <button type="submit">Add Truck</button>
+    </form>
+
+  </div>
+
+  <!-- Right Section: File List -->
+  <div class="file-list">
+    <h3>Files</h3>
+
+    <table class="file-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Timestamp</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if files %}
+          {% for file in files %}
+          <tr class="file-row" id="file-row-{{ file.id }}">
+            <td><a href="https://drive.google.com/file/d/{{ file.id }}/view" target="_blank">{{ file.name }}</a></td>
+            <td>{{ file.createdTime[:10] }} {{ file.createdTime[11:16] }}</td> 
+            <td>
+              <button class="remove-btn" 
+                      data-file-id="{{ file.id }}" 
+                      data-truck-no="{{ truck_no }}" 
+                      data-date="{{ date }}">
+                Remove
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="3">No files found.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+  </div>
+
+  <!-- jQuery for AJAX -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+  $(document).ready(function () {
+    function toggleLoading(state) {
+          if (state) {
+              $("#upload-btn,#Search_btn").prop("disabled", true); 
+              $("#upload-btn,#Search_btn").html('<div class="loading-icon"></div>'); 
+              $(".loading-icon").show();
+          } else {
+              $("#upload-btn,#Search_btn").prop("disabled", false); 
+              $("#upload-btn").text("Upload"); 
+              $("#Search_btn").text("Search"); 
+              $(".remove-btn").text("Remove");
+              $(".loading-icon").hide();
+          }
+      }
+      // ---------- Remove File ----------
+      $('.remove-btn').click(function (e) {
+          e.preventDefault(); 
+          toggleLoading(true);
+          const fileId = $(this).data('file-id');
+          const truckNo = $(this).data('truck-no');
+          const date = $(this).data('date');
+          const rowElement = $('#file-row-' + fileId);
+          if (confirm('Are you sure you want to remove this file?')) {
+              $.ajax({
+                  url: '/remove_file',
+                  method: 'POST',
+                  data: {
+                      file_id: fileId,
+                      truck_no: truckNo,
+                      date: date
+                  },
+                  success: function (response) {
+                      if (response.success) {
+                          rowElement.remove(); 
+                      } else {
+                          alert('Failed to remove file. Try again.');
+                      }
+                  },
+                  error: function () {
+                      alert('An error occurred. Please try again.');
+                  },
+                  complete: function () {
+                      toggleLoading(false);
+                  }
+              });
+          }else {
+              toggleLoading(false);
+          }
+      });
+      let selectedTruckNo = localStorage.getItem("selectedTruckNo") || "";
+      // ---------- Populate Truck Number Dropdown ----------
+      $.ajax({
+          url: '/get_truck_numbers',
+          type: 'GET',
+          success: function (response) {
+              if (response.success) {
+                  const truckDropdown = $('#truck_no');
+                  response.truck_numbers.forEach(function (truck) {
+                      truckDropdown.append(`<option value="${truck}">${truck}</option>`);
+                  });
+                  if (selectedTruckNo) {
+                    truckDropdown.val(selectedTruckNo);
+                }
+              } else {
+                  console.log("Error fetching truck numbers: " + response.error);
+              }
+          },
+          error: function () {
+              console.log("AJAX error fetching truck numbers");
+          }
+      });
+      $("#truck_no").change(function () {
+        localStorage.setItem("selectedTruckNo", $(this).val());
+    });
+
+      // ---------- File Upload ----------
+      const fileInput = $('#FileUpload1');
+      const uploadButton = $('#upload-btn');
+      uploadButton.click(function (e) {
+          e.preventDefault(); 
+          fileInput.click();  
+      });
+      fileInput.change(function () {
+        toggleLoading(true);
+          const truckNo = $('#truck_no').val();
+          const date = $('#date').val();
+          const selectedFiles = fileInput[0].files; 
+          if (!truckNo || !date || selectedFiles.length === 0) {
+              alert('Please fill Truck Number, Date, and select at least one file to upload.');
+              toggleLoading(false);
+              return;
+          }
+          const formData = new FormData();
+          formData.append('truck_no', truckNo);
+          formData.append('date', date);
+          for (let i = 0; i < selectedFiles.length; i++) {
+              formData.append('files[]', selectedFiles[i]);
+          }
+          $.ajax({
+              url: '/upload_file',
+              type: 'POST',
+              data: formData,
+              processData: false,  
+              contentType: false,  
+              success: function (response) {
+                  if (response.success) {
+                      $('#upload-status').html('<p style="color:green;">Files uploaded successfully!</p>');
+                      console.log("Upload Success:", response.uploaded_files);
+                      location.reload(); 
+                  } else {
+                      $('#upload-status').html('<p style="color:red;">' + response.error + '</p>');
+                      console.log("Error: " + response.error);
+                  }
+              },
+              error: function () {
+                  $('#upload-status').html('<p style="color:red;">An error occurred while uploading. Please try again.</p>');
+                  console.log("AJAX Error");
+              },
+              complete: function () {
+                  toggleLoading(false);
+              }
+          });
+      });
+  });
+  </script>
+  
+
+</body>
+</html>
