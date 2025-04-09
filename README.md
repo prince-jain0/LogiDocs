@@ -35,7 +35,19 @@
 | Extras       | `win32print`, `win32api` (for printing) |
 
 ---
+## 📊 Screenshots
+### Login
+![Login](https://github.com/SNIGDHA-VIJAY/LogiDocs/blob/main/Screenshots/Login.png?raw=true)
+### Sender App
+![Sender](https://github.com/SNIGDHA-VIJAY/LogiDocs/blob/main/Screenshots/Sender.png?raw=true)
+### Receiver App
+![Receiver](https://github.com/SNIGDHA-VIJAY/LogiDocs/blob/main/Screenshots/Receiver.png?raw=true)
+### Sender Sample
+![Sender Sample](https://github.com/SNIGDHA-VIJAY/LogiDocs/blob/main/Screenshots/Sender-Sample.png?raw=true)
+### Receiver Sample
+![Receiver Sample](https://github.com/SNIGDHA-VIJAY/LogiDocs/blob/main/Screenshots/Receiver-Sample.png?raw=true)
 
+---
 ## 🚀 Getting Started
 
 ### ✅ Prerequisites
