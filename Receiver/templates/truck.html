@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Truck Management</title>
+  <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  height: 100vh;
+  background: #eaf0f6 ;/* soft professional grey background */
+  display: grid;
+  grid-template-columns: 1fr 3fr;
+  gap: 20px;
+  padding: 20px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  
+  gap: 20px;
+}
+
+.form-box, .add-truck-box, .file-list, .summary-container {
+  background: #ffffff;
+  border: 1px solid #ccc;
+  padding: 20px;
+  height: 100%;
+  border-radius: 0; /* sharp corners for clean, pro look */
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #999;
+  font-size: 14px;
+  background: #fdfdfd;
+}
+
+button {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #999;
+  background: #f1f1f1;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease-in-out;
+  margin-bottom: 20px;
+}
+
+button:hover {
+  background: #e2e2e2;
+}
+
+.file-list {
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+.file-list h3 {
+  text-align: center;
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.file-table th, .file-table td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.file-table th {
+  background: #f7f7f7;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.remove-btn {
+  padding: 6px 12px;
+  border: 1px solid #999;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s;
+}
+
+.remove-btn:hover {
+  background: #e74c3c;
+  color: white;
+  border-color: #e74c3c;
+}
+
+.summary-container {
+  grid-column: 1 / -1;
+  width: 100%;
+  background: #fff;
+  border: 1px solid #ccc;
+  padding: 20px;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+#summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+#summary-table th, #summary-table td {
+  padding: 10px;
+  border: 1px solid #ccc;
+}
+
+#summary-table th {
+  background: #f7f7f7;
+}
+
+/* Dropdown and button in summary container */
+.summary-container select,
+.summary-container button {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #999;
+  font-size: 14px;
+  background-color: #f9f9f9;
+  font-weight: 600;
+}
+
+.loading-icon {
+  display: none;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #333;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: auto;
+}
+#overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.7);
+  z-index: 9999;
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #333;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
+  </style>
+</head>
+<body>
+
+  <!-- Left Section: Forms -->
+  <div class="section">
+    
+    <!-- Search and Upload Section -->
+    <form action="{{ url_for('truck_details') }}" method="POST" class="form-box">
+      <h3 align="Center">Truck Input</h3>
+      <label for="truck_no">Truck Number:</label>
+      <select id="truck_no" name="truck_no">
+          <option value="">-- Select Truck Number --</option>
+          {% for truck in truck_folders %}
+          <option value="{{ truck }}" {% if truck == truck_no %} selected {% endif %}>{{ truck }}</option>
+          {% endfor %}
+      </select>
+
+      <label for="date">Date:</label>
+      <input type="date" name="date" id="date" required value="{{ date if date else '' }}">
+
+      <button type="submit" class="btn" id="Search_btn" >Search</button>
+      <button type="button" id="download" class="selected-btn" >Download</button>
+      <button type="button" id="pending" class="pending-btn">Select Pending</button>
+      <div id="download-status"></div>
+    </form>
+
+  </div>
+
+  <div class="file-list">
+    <h3>Files</h3>
+
+    <table class="file-table">
+      <thead>
+        <tr>
+          <th>Select</th>
+          <th>Name</th>
+          <th>Timestamp</th>
+          <th>Action</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if files %}
+          {% for file in files %}
+            <tr class="file-row {% if file.downloaded %}downloaded{% endif %}" id="file-row-{{ file.id }}">
+              <td>
+                <input type="checkbox" 
+                       class="file-checkbox" 
+                       data-file-id="{{ file.id }}" 
+                       data-truck-no="{{ truck_no }}" 
+                       data-date="{{ date }}" 
+                       data-file-name="{{ file.name }}">
+              </td>
+              <td>
+                <a href="https://drive.google.com/file/d/{{ file.id }}" target="_blank">{{ file.name }}</a>
+              </td>
+              <td>
+                {{ file.createdTime[:10] }} {{ file.createdTime[11:16] }}
+              </td>
+              <td>
+                <button class="download-btn" 
+                        data-file-id="{{ file.id }}" 
+                        data-truck-no="{{ truck_no }}" 
+                        data-date="{{ date }}"
+                        data-file-name="{{ file.name }}">
+                  Download
+                </button>
+              </td>
+              <td class="status-cell">
+                {% if file.downloaded %}
+                  Downloaded ✅
+                {% else %}
+                  Pending
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="5">No files found.</td>
+          </tr>
+        {% endif %}
+      </tbody>
+      
+    </table>
+
+  </div>
+  <div class="summary-container">
+    <h3>Pending Summary</h3>
+    <input type="date" id="pending-date" />
+    <button id="pending-summary-btn">View Pending Summary</button>
+    
+    <table id="summary-table" border="1" style="width: 100%; margin-top: 15px; display: none;">
+      <thead>
+        <tr>
+          <th>Truck</th>
+          <th>Total Documents</th>
+          <th>Total Pending</th>
+          <th>Print Pending</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="overlay">
+    <div class="spinner"></div>
+  </div>
+  
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script>
+  $(document).ready(function () {
+    function toggleLoading(state) {
+          if (state) {
+              $("#upload-btn,#Search_btn").prop("disabled", true); 
+              $("#upload-btn,#Search_btn").html('<div class="loading-icon"></div>');
+              $(".loading-icon").show();
+          } else {
+              $("#upload-btn,#Search_btn").prop("disabled", false); 
+              $("#upload-btn").text("Upload"); 
+              $("#Search_btn").text("Search"); 
+              $(".download-btn").text("Download");
+              $(".loading-icon").hide();
+          }
+      }
+      // ---------- Download File ----------
+      $('.download-btn').click(function (e) {
+          e.preventDefault(); 
+          toggleLoading(true);
+          const fileId = $(this).data('file-id');
+          const truckNo = $(this).data('truck-no');
+          const date = $(this).data('date');
+          const file_name=$(this).data('file-name');
+              $.ajax({
+                  url: '/download_file',
+                  method: 'POST',
+                  data: {
+                      file_id: fileId,
+                      truck_no: truckNo,
+                      date: date,
+                      name:file_name
+                  },
+            success: function (response) {
+            toggleLoading(false);
+            if (response.success) {
+                alert('Files processed successfully!');
+                console.log(response.file_id)
+                console.log(response.file_paths) 
+                  var fileId = response.file_id; 
+                    console.log("🔹 DEBUG: Updating status for file ID:", fileId);
+                    var row = $("input.file-checkbox[data-file-id='" + fileId + "']").closest('tr');
+                    if (row.length) {
+                        console.log("✅ Row found for file ID:", fileId);
+                        row.find("td:last").text("Downloaded ✅"); 
+                        row.find(".file-checkbox").prop("checked", false);
+                    } else {
+                        console.log("❌ ERROR: File row not found for ID:", fileId);
+                    }   
+        } else {
+                alert('File download failed.');
+            }
+        },
+        error: function () {
+            toggleLoading(false);
+            alert('Failed to download file.');
+        },
+        complete: function () {
+            toggleLoading(false);
+            
+        }
+              });
+      });
+    });
+    $('#pending').click(function () {
+        $('.file-row').each(function () {
+            var status = $(this).find('td:last').text().trim();
+            if (status === "Pending") {
+                $(this).find('.file-checkbox').prop('checked', true);
+            }
+        });
+    });
+    $('.selected-btn').click(function (e) {
+    e.preventDefault();
+    var selectedFiles = [];
+    $("input.file-checkbox:checked").each(function () {
+        var fileData = {
+            file_id: $(this).data('file-id'),
+            truck_no: $(this).data('truck-no'),
+            date: $(this).data('date'),
+            file_name: $(this).data('file-name').trim()
+        };
+        selectedFiles.push(fileData);
+    });
+    if (selectedFiles.length === 0) {
+        alert('No files selected.');
+        return;
+    }
+    console.log("🔹 DEBUG: Selected Files:", selectedFiles);
+    $.ajax({
+        url: '/process_selected_files',  
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ file_ids: selectedFiles }), 
+        success: function (response) {
+            console.log("🔹 DEBUG: Response from server:", response); 
+            if (response.success) {
+                alert('Files processed successfully!');
+                console.log(response.file_id)
+                console.log(response.file_paths)
+                response.file_id.forEach(fileData => {
+                  var fileId = fileData; 
+                    console.log("🔹 DEBUG: Updating status for file ID:", fileId);
+                    var row = $("input.file-checkbox[data-file-id='" + fileId + "']").closest('tr');
+                    if (row.length) {
+                        console.log("✅ Row found for file ID:", fileId);
+                        row.find("td:last").text("Downloaded ✅"); 
+                        row.find(".file-checkbox").prop("checked", false); 
+                    } else {
+                        console.log("❌ ERROR: File row not found for ID:", fileId);
+                    }
+                });
+            } else {
+                alert('Processing failed.');
+            }
+        },
+        error: function () {
+            alert('Error processing files.');
+        }
+    });
+});
+document.getElementById("pending-summary-btn").onclick = function () {
+    const date = document.getElementById("pending-date").value;
+    if (!date) {
+      alert("Please select a date");
+      return;
+    }
+    document.getElementById("overlay").style.display = "flex"; 
+    fetch("/pending_summary", {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: "date=" + encodeURIComponent(date)
+    })
+    .then(response => response.json())
+    .then(data => {
+      const table = document.getElementById("summary-table");
+      const tbody = table.querySelector("tbody");
+      tbody.innerHTML = ""; 
+      data.summary.forEach(truck => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${truck.truck}</td>
+          <td>${truck.total}</td>
+          <td>${truck.pending}</td>
+          <td><button onclick='printPending(${JSON.stringify(truck.files)})'>Print</button></td>
+        `;
+        tbody.appendChild(row);
+      });
+      table.style.display = 'table';
+      document.getElementById("overlay").style.display = "none"; 
+    })
+    .catch(err => {
+      alert("Error fetching summary");
+      document.getElementById("overlay").style.display = "none"; 
+      console.error(err);
+    });
+  };
+  function printPending(files) {
+    fetch("/process_selected_files", {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ file_ids: files })
+    })
+    .then(res => res.json())
+    .then(result => {
+      alert("Files downloaded & opened successfully!");
+    })
+    .catch(err => {
+      alert("Error downloading files");
+      console.error(err);
+    });
+  }
+  </script>
+</body>
+</html>
