@@ -111,5 +111,5 @@ Contributions and feature suggestions are welcome! Feel free to fork, raise issu
 
 ---
 
-> Built by Snigdha Vijay & ([@prince-jain0](https://github.com/prince-jain0))
+> Built by Prince Jain & ([@SNIGDHA-VIJAY](https://github.com/SNIGDHA-VIJAY))
 
